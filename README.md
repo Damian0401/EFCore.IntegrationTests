@@ -4,6 +4,7 @@ Base template for integration tests of EF Core and SQL Server using TestContaine
 
 ### Stack
 - .NET 8
+- Entity Framework Core
 - xUnit
 - TestContainers
 

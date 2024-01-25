@@ -1,5 +1,5 @@
 ﻿using Api;
-using Api.Models;
+using Api.Dtos;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,7 +26,7 @@ public class BooksIntegrationTests : BaseIntegrationTest
         var id = -1;
 
         // Act
-        var response = await _systemUnderTest.GetById(id);
+        var response = await _systemUnderTest.GetByIdAsync(id);
         
         // Assert
         Assert.IsType<NotFound>(response.Result);
@@ -42,12 +42,12 @@ public class BooksIntegrationTests : BaseIntegrationTest
         await Context.SaveChangesAsync();
 
         // Act
-        var response = await _systemUnderTest.GetById(book.Id);
+        var response = await _systemUnderTest.GetByIdAsync(book.Id);
         
         // Assert
-        Assert.IsType<Ok<BookModel>>(response.Result);
+        Assert.IsType<Ok<GetBookDetailsDto>>(response.Result);
 
-        var okResult = (Ok<BookModel>)response.Result;
+        var okResult = (Ok<GetBookDetailsDto>)response.Result;
         
         Assert.NotNull(okResult.Value);
         Assert.True(TestHelper.AllPropertiesAreEqual(book, okResult.Value));
@@ -59,12 +59,12 @@ public class BooksIntegrationTests : BaseIntegrationTest
         // Arrange
 
         // Act
-        var response = await _systemUnderTest.GetAll();
+        var response = await _systemUnderTest.GetAllAsync();
         
         // Assert
-        Assert.IsType<Ok<IEnumerable<BookModel>>>(response.Result);
+        Assert.IsType<Ok<IEnumerable<GetBookDto>>>(response.Result);
 
-        var okResult = (Ok<IEnumerable<BookModel>>)response.Result;
+        var okResult = (Ok<IEnumerable<GetBookDto>>)response.Result;
 
         Assert.NotNull(okResult.Value);
         Assert.Empty(okResult.Value);
@@ -83,12 +83,12 @@ public class BooksIntegrationTests : BaseIntegrationTest
         await Context.SaveChangesAsync();
 
         // Act
-        var response = await _systemUnderTest.GetAll();
+        var response = await _systemUnderTest.GetAllAsync();
         
         // Assert
-        Assert.IsType<Ok<IEnumerable<BookModel>>>(response.Result);
+        Assert.IsType<Ok<IEnumerable<GetBookDto>>>(response.Result);
         
-        var okResult = (Ok<IEnumerable<BookModel>>)response.Result;
+        var okResult = (Ok<IEnumerable<GetBookDto>>)response.Result;
 
         Assert.NotNull(okResult.Value);
         Assert.True(TestHelper.AllElementsAreEqual(books, okResult.Value));
@@ -99,17 +99,22 @@ public class BooksIntegrationTests : BaseIntegrationTest
     {
         // Arrange
         var book = DataHelper.GetBookWithoutId();
+        var dto = new CreateBookDto
+        {
+            Title = book.Title,
+            Description = book.Description
+        };
 
         // Act
-        var response = await _systemUnderTest.Create(book);
+        var response = await _systemUnderTest.CreateAsync(dto);
         
         // Assert
-        Assert.IsType<Created<BookModel>>(response.Result);
+        Assert.IsType<Created<CreatedBookDto>>(response.Result);
 
-        var createdResult = (Created<BookModel>)response.Result;
+        var createdResult = (Created<CreatedBookDto>)response.Result;
 
         Assert.NotNull(createdResult.Value);
-        Assert.True(TestHelper.AllPropertiesAreEqual(book, createdResult.Value, ignoreProperties: [nameof(BookModel.Id)]));
+        Assert.True(TestHelper.AllPropertiesAreEqual(dto, createdResult.Value));
     }
 
     [Fact]
@@ -118,9 +123,14 @@ public class BooksIntegrationTests : BaseIntegrationTest
         // Arrange
         var id = -1;
         var book = DataHelper.GetBookWithoutId();
+        var dto = new UpdateBookDto
+        {
+            Title = book.Title,
+            Description = book.Description
+        };
 
         // Act
-        var response = await _systemUnderTest.Update(id, book);
+        var response = await _systemUnderTest.UpdateAsync(id, dto);
 
         // Assert
         Assert.IsType<BadRequest>(response.Result);
@@ -136,17 +146,21 @@ public class BooksIntegrationTests : BaseIntegrationTest
         await Context.SaveChangesAsync();
 
         var updatedBook = DataHelper.GetBookWithoutId();
-        updatedBook.Id = book.Id;
+        var dto = new UpdateBookDto
+        {
+            Title = updatedBook.Title,
+            Description = updatedBook.Description
+        };
 
         // Act
-        var response = await _systemUnderTest.Update(book.Id, updatedBook);
+        var response = await _systemUnderTest.UpdateAsync(book.Id, dto);
 
         // Assert
         Assert.IsType<NoContent>(response.Result);
 
         Context.Entry(book).Reload();
 
-        Assert.True(TestHelper.AllPropertiesAreEqual(updatedBook, book));
+        Assert.True(TestHelper.AllPropertiesAreEqual(dto, book));
     }
 
     [Fact]
@@ -156,7 +170,7 @@ public class BooksIntegrationTests : BaseIntegrationTest
         var id = -1;
 
         // Act
-        var response = await _systemUnderTest.Delete(id);
+        var response = await _systemUnderTest.DeleteAsync(id);
         
         // Assert
         Assert.IsType<BadRequest>(response.Result);
@@ -172,7 +186,7 @@ public class BooksIntegrationTests : BaseIntegrationTest
         await Context.SaveChangesAsync();
 
         // Act
-        var response = await _systemUnderTest.Delete(book.Id);
+        var response = await _systemUnderTest.DeleteAsync(book.Id);
 
         // Assert
         Assert.IsType<NoContent>(response.Result);

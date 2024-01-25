@@ -1,4 +1,5 @@
-﻿using Api.Models;
+﻿using Api.Dtos;
+using Api.Models;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,11 +7,11 @@ namespace Api;
 
 public interface IBookService 
 {
-    Task<Results<Ok<IEnumerable<BookModel>>, BadRequest>> GetAll();
-    Task<Results<Ok<BookModel>, NotFound, BadRequest>> GetById(int id);
-    Task<Results<Created<BookModel>, BadRequest>> Create(BookModel book);
-    Task<Results<NoContent, BadRequest>> Update(int id, BookModel book);
-    Task<Results<NoContent, BadRequest>> Delete(int id);
+    Task<Results<Ok<IEnumerable<GetBookDto>>, BadRequest>> GetAllAsync(CancellationToken ct = default);
+    Task<Results<Ok<GetBookDetailsDto>, NotFound, BadRequest>> GetByIdAsync(int id, CancellationToken ct = default);
+    Task<Results<Created<CreatedBookDto>, BadRequest>> CreateAsync(CreateBookDto book, CancellationToken ct = default);
+    Task<Results<NoContent, BadRequest>> UpdateAsync(int id, UpdateBookDto book, CancellationToken ct = default);
+    Task<Results<NoContent, BadRequest>> DeleteAsync(int id, CancellationToken ct = default);
 }
 
 internal class BookService : IBookService
@@ -22,14 +23,32 @@ internal class BookService : IBookService
         _context = context;
     }
 
-    public async Task<Results<Created<BookModel>, BadRequest>> Create(BookModel book)
+    public async Task<Results<Created<CreatedBookDto>, BadRequest>> CreateAsync(
+        CreateBookDto book, 
+        CancellationToken ct = default)
     {
-        await _context.Books.AddAsync(book);
-        await _context.SaveChangesAsync();
-        return TypedResults.Created($"/books/{book.Id}", book);
+        var bookModel = new BookModel
+        {
+            Title = book.Title,
+            Description = book.Description
+        };
+
+        await _context.Books.AddAsync(bookModel);
+        await _context.SaveChangesAsync(ct);
+
+        var createdBook = new CreatedBookDto
+        {
+            Id = bookModel.Id,
+            Title = bookModel.Title,
+            Description = bookModel.Description
+        };
+
+        return TypedResults.Created($"/books/{createdBook.Id}", createdBook);
     }
 
-    public async Task<Results<NoContent, BadRequest>> Delete(int id)
+    public async Task<Results<NoContent, BadRequest>> DeleteAsync(
+        int id, 
+        CancellationToken ct = default)
     {
         if (await _context.Books.FindAsync(id) is not BookModel book)
         {
@@ -37,19 +56,39 @@ internal class BookService : IBookService
         }
 
         _context.Books.Remove(book);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(ct);
         return TypedResults.NoContent();
     }
 
-    public async Task<Results<Ok<IEnumerable<BookModel>>, BadRequest>> GetAll()
+    public async Task<Results<Ok<IEnumerable<GetBookDto>>, BadRequest>> GetAllAsync(
+        CancellationToken ct = default)
     {
-        var books = await _context.Books.ToListAsync();
+        var books = await _context.Books
+            .Select(book => new GetBookDto
+            {
+                Id = book.Id,
+                Title = book.Title,
+                Description = book.Description
+            })
+            .ToListAsync(ct);
+
         return TypedResults.Ok(books.AsEnumerable());
     }
 
-    public async Task<Results<Ok<BookModel>, NotFound, BadRequest>> GetById(int id)
+    public async Task<Results<Ok<GetBookDetailsDto>, NotFound, BadRequest>> GetByIdAsync(
+        int id, 
+        CancellationToken ct = default)
     {
-        if (await _context.Books.FindAsync(id) is not BookModel book)
+        var book = await _context.Books
+            .Select(book => new GetBookDetailsDto
+            {
+                Id = book.Id,
+                Title = book.Title,
+                Description = book.Description
+            })
+            .FirstOrDefaultAsync(book => book.Id == id, ct);
+
+        if (book is null)
         {
             return TypedResults.NotFound();
         }
@@ -57,9 +96,12 @@ internal class BookService : IBookService
         return TypedResults.Ok(book);
     }
 
-    public async Task<Results<NoContent, BadRequest>> Update(int id, BookModel book)
+    public async Task<Results<NoContent, BadRequest>> UpdateAsync(
+        int id, 
+        UpdateBookDto book, 
+        CancellationToken ct = default)
     {
-        if (await _context.Books.FindAsync(id) is not BookModel bookToUpdate)
+        if (await _context.Books.FindAsync(id, ct) is not BookModel bookToUpdate)
         {
             return TypedResults.BadRequest();
         }
@@ -67,7 +109,7 @@ internal class BookService : IBookService
         bookToUpdate.Title = book.Title;
         bookToUpdate.Description = book.Description;
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(ct);
         return TypedResults.NoContent();
     }
 }
