@@ -196,12 +196,4 @@ public class BooksIntegrationTests : BaseIntegrationTest
 
         Assert.False(bookExists);
     }
-
-    public override void Dispose()
-    {
-        Context.Books.RemoveRange(Context.Books);
-        Context.SaveChanges();
-
-        base.Dispose();
-    }
 }
